@@ -22,7 +22,13 @@ import errno
 import gc
 import os
 import io
-import select
+try:
+    from selectasepoll import _select as select
+except ImportError:
+    try:
+        from selectaspoll import _select as select
+    except ImportError:
+        from select import select
 import signal
 import stat
 import sys
@@ -113,20 +119,18 @@ def detectLinuxBrokenPipeBehavior():
     """
     r, w = os.pipe()
     os.write(w, b'a')
-    reads, writes, exes = select.select([w], [], [], 0)
+    reads, writes, exes = select([w], [], [], 0)
     if reads:
-        # Linux < 2.6.11 says a write-only pipe is readable.
-        brokenPipeBehavior = True
+         # Linux < 2.6.11 says a write-only pipe is readable.
+         brokenPipeBehavior = True
     else:
-        brokenPipeBehavior = False
+         brokenPipeBehavior = False
     os.close(r)
     os.close(w)
     return brokenPipeBehavior
 
 
-
 brokenLinuxPipeBehavior = detectLinuxBrokenPipeBehavior()
-
 
 
 class ProcessWriter(abstract.FileDescriptor):
@@ -225,7 +229,8 @@ class ProcessWriter(abstract.FileDescriptor):
         if self.enableReadHack:
             if brokenLinuxPipeBehavior:
                 fd = self.fd
-                r, w, x = select.select([fd], [fd], [], 0)
+                r, w, x = select([fd], [fd], [], 0)
+
                 if r and w:
                     return CONNECTION_LOST
             else:
