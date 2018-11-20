@@ -111,16 +111,19 @@ def detectLinuxBrokenPipeBehavior():
     @return: C{True} if Linux pipe behaviour is broken.
     @rtype : L{bool}
     """
-    r, w = os.pipe()
-    os.write(w, b'a')
-    reads, writes, exes = select.select([w], [], [], 0)
-    if reads:
-        # Linux < 2.6.11 says a write-only pipe is readable.
-        brokenPipeBehavior = True
-    else:
+    if hasattr(select, 'epoll') or hasattr(select, 'poll'):
         brokenPipeBehavior = False
-    os.close(r)
-    os.close(w)
+    else:
+        r, w = os.pipe()
+        os.write(w, b'a')
+        reads, writes, exes = select.select([w], [], [], 0)
+        if reads:
+            # Linux < 2.6.11 says a write-only pipe is readable.
+            brokenPipeBehavior = True
+        else:
+            brokenPipeBehavior = False
+        os.close(r)
+        os.close(w)
     return brokenPipeBehavior
 
 
